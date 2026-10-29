@@ -178,7 +178,17 @@ final class TrackingTests {
 @main struct CheckRunner {
     static func main() {
         let suite=TrackingTests()
+        let cycleSuite=CycleTests()
         let tests:[(String,() throws -> Void)] = [
+            ("testCastWithoutAnyMinigame",cycleSuite.testCastWithoutAnyMinigame),
+            ("testStopReleasesAndCancelsFutureCasts",cycleSuite.testStopReleasesAndCancelsFutureCasts),
+            ("testNoTimeLimitAndRetryAfterNoBite",cycleSuite.testNoTimeLimitAndRetryAfterNoBite),
+            ("testManualClickDoesNotStopReeling",cycleSuite.testManualClickDoesNotStopReeling),
+            ("testFocusPauseReleasesAndResumes",cycleSuite.testFocusPauseReleasesAndResumes),
+            ("testWindowMovementReacquiresInsteadOfStopping",cycleSuite.testWindowMovementReacquiresInsteadOfStopping),
+            ("testMissingBarsReleaseAndRetry",cycleSuite.testMissingBarsReleaseAndRetry),
+            ("testMoreThanTenCatchesKeepsRunning",cycleSuite.testMoreThanTenCatchesKeepsRunning),
+            ("testMouseOutputMovesThenPressesAndReleasesThroughSystemStream",cycleSuite.testMouseOutputMovesThenPressesAndReleasesThroughSystemStream),
             ("testDetectsBottomBoxAndWhiteLine",suite.testDetectsBottomBoxAndWhiteLine),
             ("testRejectsMultipleBlackBoxes",suite.testRejectsMultipleBlackBoxes),
             ("testRejectsMissingWhiteLine",suite.testRejectsMissingWhiteLine),

@@ -66,8 +66,8 @@ public enum AutoVision {
             } }
             let score=Double(matches)/Double(count)
             guard score>=0.97, maxB-minB<125 else { continue }
-            // Prefer upper-middle open water, away from player/hotbar.
-            let rank=score-abs((nx-bounds.x)/bounds.w-0.55)*0.08-abs((ny-bounds.y)/bounds.h-0.3)*0.12
+            // Prefer water nearer the character instead of distant blue sky.
+            let rank=score-abs((nx-bounds.x)/bounds.w-0.40)*0.06-abs((ny-bounds.y)/bounds.h-0.57)*0.25
             if rank>bestRank { bestRank=rank; best=WaterPoint(x:nx,y:ny,score:score) }
         } }
         return best
