@@ -161,7 +161,8 @@ struct ContentView: View {
         HStack {
             Image(systemName:on ? "checkmark.circle.fill":"circle").foregroundStyle(on ? teal:Color.secondary)
             Text(title).font(.system(size:12)); Spacer()
-            Button(on ? "Settings":"Allow",action:on ? settings:action).font(.caption).buttonStyle(.borderless)
+            if !on { Button("Allow",action:action).font(.caption).buttonStyle(.borderless) }
+            Button("Settings",action:settings).font(.caption).buttonStyle(.borderless)
         }
     }
 }

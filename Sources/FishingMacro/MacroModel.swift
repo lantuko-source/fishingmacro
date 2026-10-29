@@ -48,6 +48,7 @@ import FishingCore
     private var crop:Region?
     private var safetyCounter=0
     private var cachedWindowOK=true
+    private var capturePermissionConfirmed=false
     private var clock:Double { ProcessInfo.processInfo.systemUptime }
 
     init() {
@@ -58,12 +59,22 @@ import FishingCore
         NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.screensDidSleepNotification,
             object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.stop("Display went to sleep") } }
     }
-    func refreshPermissions() { accessibility=AXIsProcessTrusted(); recording=CGPreflightScreenCaptureAccess() }
+    func refreshPermissions() {
+        accessibility=AXIsProcessTrusted()
+        // A real successful ScreenCaptureKit image is stronger evidence than a
+        // legacy preflight result, which can remain false in the current process.
+        recording=CGPreflightScreenCaptureAccess() || capturePermissionConfirmed
+    }
     func requestAccessibility() {
         _=AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary)
         refreshPermissions()
     }
-    func requestRecording() { _=CGRequestScreenCaptureAccess(); refreshPermissions() }
+    func requestRecording() {
+        _=CGRequestScreenCaptureAccess(); refreshPermissions()
+        if !recording {
+            message="If Fishing Macro is already enabled in Settings, remove its old entry and add the app from Applications again. Then quit and reopen this installed copy."
+        }
+    }
     func openPrivacy(_ pane:String) {
         if let url=URL(string:"x-apple.systempreferences:com.apple.preference.security?"+pane) { NSWorkspace.shared.open(url) }
     }
@@ -103,6 +114,7 @@ import FishingCore
             NSRunningApplication(processIdentifier:targetPID)?.activate(options:[])
             try await Task.sleep(nanoseconds:400_000_000)
             let shot=try await SCScreenshotManager.captureImage(contentFilter:filter!,configuration:configuration())
+            capturePermissionConfirmed=true
             image=shot; liveImage=nil; imported=false; hasCapture=true
             screenLabel="Entire screen · \(Int(display.frame.width)) × \(Int(display.frame.height))"
             analyzeSetup(shot)
@@ -110,7 +122,8 @@ import FishingCore
             NSApp.activate(ignoringOtherApps:true)
             NSApp.windows.first(where:{$0.isVisible && $0.canBecomeKey})?.makeKeyAndOrderFront(nil)
         } catch {
-            message="Screen capture unavailable: \(error.localizedDescription). Allow Screen Recording and relaunch if required."
+            capturePermissionConfirmed=false; refreshPermissions()
+            message="Screen capture unavailable: \(error.localizedDescription). If already enabled, remove its old Settings entry and add Fishing Macro from Applications again."
         }
     }
     private func analyzeSetup(_ shot:CGImage) {
@@ -140,7 +153,8 @@ import FishingCore
         guard !running else { stop("Stopped by you"); return }
         refreshPermissions()
         guard hasCapture,!imported,filter != nil else { message="Capture your screen first."; return }
-        guard recording else { message="Allow Screen Recording, then relaunch the app."; return }
+        // hasCapture proves a real image was obtained. Every run captures again
+        // before its first mouse press, so revoked access still stops input.
         guard preview || accessibility else { message="Allow Accessibility before enabling real clicks."; return }
         guard hotKey != nil else { message="Emergency shortcut is unavailable. Close the app using Control–Option–X, then relaunch."; return }
         guard !CGEventSource.buttonState(.combinedSessionState,button:.left) else { message="Release the mouse button before starting."; return }
@@ -235,6 +249,7 @@ import FishingCore
             } catch {
                 self.captureBusy=false
                 guard self.running,self.runID==id else { return }
+                self.capturePermissionConfirmed=false; self.refreshPermissions()
                 self.stop("Screen capture failed: \(error.localizedDescription)")
             }
         }

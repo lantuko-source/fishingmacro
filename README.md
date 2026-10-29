@@ -19,7 +19,21 @@ Requires macOS 14 or newer. The release ZIP contains a universal app for Apple s
 
 Use **Control + Option + X** or the menu bar Stop command at any time. The app starts stopped and in preview on every launch. Keep it supervised.
 
-Local builds are ad-hoc signed and are not notarized. A downloaded build may require macOS's normal **Privacy & Security → Open Anyway** flow. The app does not disable Gatekeeper. Replacing an ad-hoc build can require granting its permissions again. Developer ID signing and notarization are needed for smoother public distribution.
+Local builds use an available Apple Development or Developer ID certificate when there is exactly one valid signing identity on the Mac. This gives successive builds a stable signing requirement. Set `FISHING_SIGN_IDENTITY` to explicitly choose an identity when needed. No certificate or private key is copied into the repository. If no unique identity is available, the build uses an ad-hoc signature and warns that replacing the build can require permission approval again. CI builds without a configured identity use this fallback.
+
+Builds are not notarized. A downloaded build may require macOS's normal **Privacy & Security → Open Anyway** flow. The app does not disable Gatekeeper. Developer ID signing and notarization are needed for smoother public distribution.
+
+### Permission enabled in Settings, but the app still asks
+
+Version 0.1.0 used changing ad-hoc signing requirements. An older grant can remain switched on in Settings while macOS refuses access to the current executable. A duplicate app in a synced build folder was also found during troubleshooting; that copy failed signature validation because of Finder metadata.
+
+Version 0.1.1 keeps only the ZIP in the build folder, uses the available stable signing identity for this local installation, keeps a Settings button available, and accepts a successful ScreenCaptureKit image as proof even if the legacy preflight check reports false. It still stops when actual capture fails. Moving from the old signature to the certificate-backed build requires one clean permission grant:
+
+1. Quit Fishing Macro.
+2. In **Screen & System Audio Recording** and the app's **Accessibility** settings, remove the old Fishing Macro entry and add **Applications → Fishing Macro.app** again. Approve only the permissions you intend the app to have.
+3. Reopen the Applications copy. Click **Capture entire screen** to verify capture. Do not reuse an old Dock shortcut pointing into the development folder.
+
+Only Fishing Macro's old grants may need resetting; there is no reason to reset all apps' privacy settings.
 
 ## Automatic loop
 
@@ -58,7 +72,7 @@ bash scripts/check.sh
 bash scripts/build-app.sh
 ```
 
-Outputs are `dist/Fishing Macro.app` and `dist/FishingMacro.zip`. A universal build compiles both Apple silicon and Intel binaries. `bash scripts/build-app.sh --debug` creates a quicker local build for the current Mac.
+The output is `dist/FishingMacro.zip`; extract the app into Applications. The build does not leave a duplicate app in the synced development folder. A universal build compiles both Apple silicon and Intel binaries. `bash scripts/build-app.sh --debug` creates a quicker local build for the current Mac.
 
 The scripts use SwiftPM's native build engine to work with Command Line Tools installations lacking Xcode's full macro plugins. Newer Swift releases can emit a deprecation warning for this build-engine option. Checks use a standalone executable so full Xcode/XCTest is not required.
 

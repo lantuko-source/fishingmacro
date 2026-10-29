@@ -7,6 +7,15 @@ mkdir -p dist
 stage="$(mktemp -d "${TMPDIR%/}/fishingmacro.XXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 app="$stage/Fishing Macro.app"
+identity="${FISHING_SIGN_IDENTITY:-}"
+if [[ -z "$identity" ]]; then
+    available="$(security find-identity -v -p codesigning | sed -nE '/"(Apple Development|Developer ID Application):/s/^[[:space:]]*[0-9]+\) ([A-F0-9]{40}).*/\1/p')"
+    if [[ -n "$available" && "$available" != *$'\n'* ]]; then
+        identity="$available"
+    else
+        identity="-"
+    fi
+fi
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 if [[ "${1:-}" == "--debug" ]]; then
     swift build --build-system native --product FishingMacro
@@ -24,8 +33,14 @@ iconutil -c icns dist/AppIcon.iconset -o "$app/Contents/Resources/AppIcon.icns"
 # Remove only signing-incompatible metadata; preserve quarantine/security flags.
 xattr -dr com.apple.FinderInfo "$app" 2>/dev/null || true
 xattr -dr com.apple.ResourceFork "$app" 2>/dev/null || true
-codesign --force --sign - --identifier com.lantuko.fishingmacro "$app"
+codesign --force --sign "$identity" --identifier com.lantuko.fishingmacro "$app"
 codesign --verify --deep --strict "$app"
 ditto -c -k --norsrc --noextattr --keepParent "$app" "dist/FishingMacro.zip"
-ditto --norsrc --noextattr "$app" "dist/Fishing Macro.app"
-echo "Built dist/Fishing Macro.app and dist/FishingMacro.zip"
+# Keep a single installed app. A second .app in this synced build folder can
+# acquire invalid Finder metadata and be reopened by an old Dock shortcut.
+rm -rf "dist/Fishing Macro.app"
+if [[ "$identity" == "-" ]]; then
+    echo "Built dist/FishingMacro.zip with a local signature; rebuilds can require permission approval again."
+else
+    echo "Built dist/FishingMacro.zip with a certificate-backed signing identity."
+fi
