@@ -1,0 +1,20 @@
+name: Build Mac app
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tracking and controller
+        run: bash scripts/check.sh
+      - name: Build universal app
+        run: bash scripts/build-app.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FishingMacro-macOS
+          path: dist/FishingMacro.zip
